@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ดอกไม้บานบนมือ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mali:wght@500;600&family=Sarabun:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blush:#EAC7C7; --mist:#D5E3E8; --rose:#E8A2A2;
+  --cream:#F7F5EB; --sky:#A0C3D2; --sand:#EAE0DA;
+  --ink:#4B3A3A; --ink-soft:#7A6666;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--cream); color:var(--ink);
+  font-family:'Sarabun','Noto Sans Thai',system-ui,sans-serif; font-size:17px; line-height:1.6;
+}
+.wrap{max-width:980px; margin:0 auto; padding:28px 20px 56px}
+h1{font-family:'Mali','Sarabun',sans-serif; font-weight:600; font-size:clamp(30px,5vw,44px); line-height:1.25; margin:0 0 6px; letter-spacing:.01em}
+.lead{margin:0 0 22px; color:var(--ink-soft); max-width:36em}
+
+.stage-box{display:flex; justify-content:center}
+.stage{
+  --ar:1.7778;
+  position:relative; width:min(100%, calc(76vh * var(--ar))); aspect-ratio:var(--ar);
+  border-radius:28px; overflow:hidden;
+  background:linear-gradient(160deg,var(--mist) 0%,var(--blush) 100%);
+  box-shadow:0 0 0 8px var(--sand), 0 18px 40px -18px rgba(120,80,80,.35);
+}
+.stage:fullscreen{
+  width:100vw; height:100vh; max-width:none; aspect-ratio:auto;
+  border-radius:0; box-shadow:none; background:#222;
+}
+.stage:fullscreen video,.stage:fullscreen canvas{width:100%;height:100%}
+.stage:fullscreen .idle{font-size:clamp(20px,3vw,32px)}
+.stage video,.stage canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+.stage video{transform:scaleX(-1); object-fit:cover; opacity:0}
+.stage.live video{opacity:1}
+.stage canvas{pointer-events:none}
+.idle{
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:6px; text-align:center; padding:24px; color:var(--ink);
+  font-family:'Mali','Sarabun',sans-serif; font-size:clamp(18px,3vw,26px);
+}
+.idle small{font-family:'Sarabun',sans-serif; font-size:15px; color:var(--ink-soft)}
+.stage.live .idle{display:none}
+
+.bar{display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px; margin:26px 0 8px}
+button{
+  font:inherit; font-weight:500; cursor:pointer; border:0; border-radius:999px;
+  padding:12px 26px; color:var(--ink); background:var(--rose);
+  transition:background .15s;
+}
+button:hover:not(:disabled){background:var(--blush)}
+button:disabled{opacity:.55; cursor:default}
+button.alt{background:var(--mist)}
+button.alt:hover:not(:disabled){background:var(--sky)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--sky); outline-offset:3px}
+label.chk{display:flex; align-items:center; gap:8px; color:var(--ink-soft); cursor:pointer}
+label.chk input{width:18px; height:18px; accent-color:var(--rose)}
+.status{
+  margin-left:auto; padding:6px 16px; border-radius:999px; background:var(--mist);
+  color:var(--ink); font-size:15px; min-height:34px;
+}
+.warn{background:var(--blush); border-radius:16px; padding:12px 18px; margin:0 0 18px; display:none}
+.warn code{background:var(--cream); padding:1px 8px; border-radius:8px}
+
+.guide{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px; margin-top:34px}
+.how{display:flex; gap:16px; align-items:center; background:var(--sand); border-radius:22px; padding:16px}
+.how img{width:92px; height:92px; border-radius:50%; object-fit:cover; flex:none}
+.how h2{font-family:'Mali','Sarabun',sans-serif; font-size:20px; margin:0 0 2px}
+.how p{margin:0; color:var(--ink-soft); font-size:15.5px; line-height:1.5}
+@media (max-width:560px){ .status{margin-left:0; width:100%} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ดอกไม้บานบนมือ</h1>
+
+  <div class="warn" id="warn">เปิดไฟล์นี้ตรงๆ ไม่ได้ เพราะเบราว์เซอร์ไม่ให้โหลดไฟล์โมเดล ให้รัน <code>python -m http.server 8000</code> ในโฟลเดอร์นี้ แล้วเปิด <code>http://localhost:8000</code></div>
+
+  <div class="stage-box">
+    <div class="stage" id="stage">
+      <video id="video" playsinline muted></video>
+      <canvas id="gl"></canvas>
+      <canvas id="dots"></canvas>
+      <div class="idle" id="idle">กดปุ่ม “เปิดกล้อง” เพื่อเริ่ม<small>ภาพจากกล้องประมวลผลในเครื่องคุณเท่านั้น ไม่ถูกส่งไปที่ไหน</small></div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <button id="start">เปิดกล้อง</button>
+    <button id="snap" class="alt" disabled>ถ่ายภาพ</button>
+    <button id="fullscreen" class="alt" type="button">ขยายเต็มจอ ⛶</button>
+    <label class="chk"><input type="checkbox" id="dbg"> แสดงจุดบนมือ</label>
+    <div class="status" id="status" role="status" aria-live="polite">พร้อมแล้ว</div>
+  </div>
+
+</div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+
+/* ---------- ปรับแต่งได้ตรงนี้ ---------- */
+const CFG = {
+  flowerFile: './2.glb',        // ดอกไม้สำหรับมือขวา
+  fishFile: './Nemo.glb',       // ปลาสำหรับมือซ้าย
+  bloomWidth: 1.3,              // ขนาดดอกไม้เทียบกับความยาวฝ่ามือ
+  fishWidth: 1.3,               // ขนาดปลาเทียบกับความยาวฝ่ามือ (ขยายใหญ่ขึ้น)
+  bloomTilt: 0.45,              // เอียงให้เห็นด้านบนดอกไม้ (เรเดียน)
+  fishTilt: 0.0,                // มุมเอียงของปลา
+  bloomLift: 0.0,               // ยกโมเดลขึ้นจากฝ่ามือ
+  bloomSeconds: 1.8,            // เวลาที่ใช้แสดงโมเดล
+};
+const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+// ใช้ MediaPipe Hands รุ่นคลาสสิก แทน Tasks Vision ที่เกิด dbg is not a function
+
+const $ = id => document.getElementById(id);
+const stage = $('stage'), video = $('video'), glCanvas = $('gl'), dotCanvas = $('dots');
+const startBtn = $('start'), snapBtn = $('snap'), statusEl = $('status');
+const fullscreenBtn = $('fullscreen');
+if (location.protocol === 'file:') $('warn').style.display = 'block';
+const setStatus = t => statusEl.textContent = t;
+
+// ขยายเฉพาะเฟรมกล้องให้เต็มหน้าจอ และกดซ้ำเพื่อกลับสู่ขนาดเดิม
+fullscreenBtn.addEventListener('click', async () => {
+  try {
+    if (document.fullscreenElement === stage) {
+      await document.exitFullscreen();
+    } else if (stage.requestFullscreen) {
+      await stage.requestFullscreen();
+    } else {
+      setStatus('เบราว์เซอร์นี้ไม่รองรับการขยายเต็มหน้าจอ');
+    }
+  } catch (e) {
+    console.error('Fullscreen error:', e);
+    setStatus('ขยายเต็มจอไม่ได้ กรุณาลองอีกครั้ง');
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  fullscreenBtn.textContent = document.fullscreenElement === stage ? 'ย่อกลับ ⤢' : 'ขยายเต็มจอ ⛶';
+  requestAnimationFrame(resize);
+});
+
+/* ---------- three.js ---------- */
+const renderer = new THREE.WebGLRenderer({canvas: glCanvas, alpha: true, antialias: true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.add(new THREE.HemisphereLight(0xffffff, 0xEAC7C7, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(1.5, 3, 4); scene.add(sun);
+const camera = new THREE.PerspectiveCamera(40, 16/9, 0.1, 50); camera.position.z = 5;
+let visW = 1, visH = 1;
+function resize(){
+  const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  dotCanvas.width = w; dotCanvas.height = h;
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  visH = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  visW = visH * camera.aspect;
+}
+new ResizeObserver(resize).observe(stage); resize();
+
+/* ---------- โหลดโมเดล ---------- */
+function loadGLB(url, label){
+  return new Promise((res, rej) => new GLTFLoader().load(url, res,
+    e => { if (e.total) setStatus(`กำลังโหลด${label} ${Math.round(e.loaded / e.total * 100)}%`); }, rej));
+}
+function prep(gltf){
+  const m = gltf.scene;
+  const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+  m.position.set(-c.x, -box.min.y, -c.z);       // ให้ฐานอยู่ที่จุดกำหนด
+  const holder = new THREE.Group(); holder.add(m);
+  return {holder, size};
+}
+function makeSlot(proto, tilt, seconds){
+  const wrapper = new THREE.Group();
+  const holder = proto.holder.clone(); holder.rotation.x = tilt; wrapper.add(holder);
+  wrapper.visible = false; scene.add(wrapper);
+  return {wrapper, holder, size: proto.size, seconds, kind: proto.kind, p: 0, streak: 0, lastOn: -1e9,
+          pos: new THREE.Vector3(), tpos: new THREE.Vector3(), sc: 1, tsc: 1, spin: 0, emit: 0};
+}
+let bloomSlots = [];
+
+/* ---------- อนุภาคกลีบดอกไม้ ---------- */
+const NP = 200;
+const pGeo = new THREE.BufferGeometry();
+const pPos = new Float32Array(NP*3), pCol = new Float32Array(NP*3), pAlpha = new Float32Array(NP), pSize = new Float32Array(NP);
+const pVel = new Float32Array(NP*3), pLife = new Float32Array(NP), pMax = new Float32Array(NP);
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+pGeo.setAttribute('aColor', new THREE.BufferAttribute(pCol, 3));
+pGeo.setAttribute('aAlpha', new THREE.BufferAttribute(pAlpha, 1));
+pGeo.setAttribute('aSize', new THREE.BufferAttribute(pSize, 1));
+const pMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false,
+  vertexShader: `attribute vec3 aColor; attribute float aAlpha; attribute float aSize; varying vec3 vC; varying float vA;
+    void main(){ vC=aColor; vA=aAlpha; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_PointSize=aSize*(320.0/-mv.z); gl_Position=projectionMatrix*mv; }`,
+  fragmentShader: `varying vec3 vC; varying float vA;
+    void main(){ float d=length(gl_PointCoord-0.5)*2.0; float a=smoothstep(1.0,0.55,d)*vA; if(a<0.01) discard; gl_FragColor=vec4(vC,a); }`
+});
+const points = new THREE.Points(pGeo, pMat); points.frustumCulled = false; scene.add(points);
+const PCOLORS = ['#EAC7C7', '#E8A2A2', '#F7F5EB', '#D5E3E8'].map(c => new THREE.Color(c));
+let pNext = 0;
+function emitParticles(at, spread, n){
+  for (let k = 0; k < n; k++){
+    const i = pNext++ % NP, a = Math.random() * Math.PI * 2, r = Math.random() * spread;
+    pPos.set([at.x + Math.cos(a) * r, at.y + Math.random() * spread * .6, at.z + Math.sin(a) * r * .5], i*3);
+    pVel.set([(Math.random() - .5) * .25, .25 + Math.random() * .35, 0], i*3);
+    const c = PCOLORS[(Math.random() * PCOLORS.length) | 0]; pCol.set([c.r, c.g, c.b], i*3);
+    pMax[i] = pLife[i] = 1.6 + Math.random() * 1.4; pSize[i] = .05 + Math.random() * .07;
+  }
+}
+function updateParticles(dt){
+  for (let i = 0; i < NP; i++){
+    if (pLife[i] <= 0){ pAlpha[i] = 0; continue; }
+    pLife[i] -= dt;
+    pPos[i*3] += (pVel[i*3] + Math.sin(pLife[i] * 3 + i) * .12) * dt;
+    pPos[i*3+1] += pVel[i*3+1] * dt;
+    const t = pLife[i] / pMax[i]; pAlpha[i] = Math.min(1, t * 2.2, (1 - t) * 6) * .9;
+  }
+  for (const k of ['position', 'aAlpha', 'aSize', 'aColor']) pGeo.attributes[k].needsUpdate = true;
+}
+
+/* ---------- ตรวจจับท่ามือ ---------- */
+let landmarker = null, running = false, lastVT = -1, ar = 16/9;
+const d2 = (a, b) => Math.hypot((a.x - b.x) * ar, a.y - b.y);
+const handSize = l => d2(l[0], l[9]);
+const toWorld = (x, y, out) => out.set((0.5 - x) * visW, (0.5 - y) * visH, 0);
+
+function isOpenPalm(l){
+  const fingers = [[8, 6], [12, 10], [16, 14], [20, 18]];
+  for (const [t, p] of fingers) if (d2(l[t], l[0]) < d2(l[p], l[0]) * 1.08) return false;
+  return d2(l[4], l[17]) > d2(l[3], l[17]);
+}
+function trigger(slot, tpos, tsc, now){
+  slot.streak++;
+  if (slot.streak >= 3){ slot.lastOn = now; slot.tpos.copy(tpos); slot.tsc = tsc; }
+}
+
+function handleResult(res, now){
+  const hands = res.landmarks || [];
+  const seen = new Set();
+  const tmp = new THREE.Vector3();
+  const used = [false, false];
+  hands.forEach((l, i) => {
+    if (!isOpenPalm(l)) return;
+    const label = res.handednesses?.[i]?.[0]?.categoryName;
+    let s = label === 'Right' ? 1 : 0; if (used[s]) s = 1 - s; used[s] = true;
+    const pc = [0, 5, 9, 13, 17].reduce((o, k) => ({x: o.x + l[k].x / 5, y: o.y + l[k].y / 5}), {x: 0, y: 0});
+    const hsW = handSize(l) * visH;
+    toWorld(pc.x, pc.y, tmp); tmp.y += hsW * CFG.bloomLift;
+    const slot = bloomSlots[s];
+    const modelWidth = slot.kind === 'fish' ? CFG.fishWidth : CFG.bloomWidth;
+    trigger(slot, tmp, hsW * modelWidth / slot.size.x, now);
+    seen.add(s);
+  });
+  bloomSlots.forEach((s, i) => { if (!seen.has(i)) s.streak = 0; });
+
+  setStatus(seen.size === 2 ? 'พบสองมือ: ปลาและดอกไม้กำลังแสดง' : seen.size === 1 ? 'พบมือแบ กำลังแสดงโมเดล' : hands.length ? 'พบมือ ลองแบมือให้เห็นฝ่ามือ' : 'ยังไม่พบมือ ยกมือให้อยู่ในกล้อง');
+  drawDots(hands);
+}
+
+/* ---------- วาดจุดบนมือ (ตัวช่วยดู) ---------- */
+const dctx = dotCanvas.getContext('2d');
+function drawDots(hands){
+  dctx.clearRect(0, 0, dotCanvas.width, dotCanvas.height);
+  if (!$('dbg').checked) return;
+  dctx.fillStyle = '#F7F5EB'; dctx.strokeStyle = '#E8A2A2'; dctx.lineWidth = 2;
+  for (const l of hands) for (const p of l){
+    dctx.beginPath(); dctx.arc((1 - p.x) * dotCanvas.width, p.y * dotCanvas.height, 4, 0, 7); dctx.fill(); dctx.stroke();
+  }
+}
+
+/* ---------- อัปเดตทุกเฟรม ---------- */
+const easeOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+function updateSlot(s, dt, now, isBouquet){
+  const on = now - s.lastOn < 320;
+  const prev = s.p;
+  s.p = THREE.MathUtils.clamp(s.p + (on ? dt / s.seconds : -dt / 0.7), 0, 1);
+  if (s.p <= 0){ s.wrapper.visible = false; return; }
+  if (prev <= 0){ s.pos.copy(s.tpos); s.sc = s.tsc; s.spin = isBouquet ? -0.3 : 0; }
+  s.wrapper.visible = true;
+  const k = 1 - Math.exp(-dt * 12);
+  s.pos.lerp(s.tpos, k); s.sc += (s.tsc - s.sc) * k;
+  const e = easeOutBack(s.p), eY = easeOutBack(THREE.MathUtils.clamp(s.p * 1.2 - 0.15, 0, 1));
+  s.wrapper.position.copy(s.pos);
+  s.wrapper.scale.set(s.sc * e, s.sc * eY, s.sc * e);
+  s.spin += dt * (isBouquet ? 0.35 : 0.45 + 2.2 * (1 - s.p) * (on ? 1 : 0));
+  s.holder.rotation.y = isBouquet ? Math.sin(s.spin) * 0.5 : s.spin;
+  if (s.kind === 'flower' && on && s.p > 0.1 && s.p < 1){
+    s.emit += dt * 40;
+    const n = Math.floor(s.emit); s.emit -= n;
+    if (n) emitParticles(s.pos, s.size.x * s.sc * 0.4, n);
+  }
+}
+let last = performance.now();
+let handFrameBusy = false;
+function loop(){
+  requestAnimationFrame(loop);
+  const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (running && landmarker && video.readyState >= 2 && video.currentTime !== lastVT && !handFrameBusy){
+    lastVT = video.currentTime;
+    handFrameBusy = true;
+    landmarker.send({image: video}).catch(e => console.error('MediaPipe Hands frame error', e)).finally(() => { handFrameBusy = false; });
+  }
+  if (bloomSlots.length) bloomSlots.forEach(s => updateSlot(s, dt, now, s.kind === 'fish')); 
+  updateParticles(dt);
+  renderer.render(scene, camera);
+}
+
+/* ---------- เริ่มต้น ---------- */
+async function initLandmarker(){
+  if (typeof Hands === 'undefined') throw new Error('โหลด MediaPipe Hands ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตหรือ CDN');
+  landmarker = new Hands({locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+  landmarker.setOptions({
+    maxNumHands: 2,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+  });
+  landmarker.onResults(results => {
+    const handednesses = (results.multiHandedness || []).map(h => ({
+      0: {categoryName: h.label || h.classification?.[0]?.label || 'Right'}
+    }));
+    handleResult({landmarks: results.multiHandLandmarks || [], handednesses}, performance.now());
+  });
+}
+async function initModels(){
+  const [fishGltf, flowerGltf] = await Promise.all([
+    loadGLB(CFG.fishFile, 'ปลา Nemo'),
+    loadGLB(CFG.flowerFile, 'ดอกไม้')
+  ]);
+  const fish = prep(fishGltf); fish.kind = 'fish';
+  const flower = prep(flowerGltf); flower.kind = 'flower';
+  // MediaPipe label Right -> slot 1; Left -> slot 0
+  bloomSlots = [
+    makeSlot(fish, CFG.fishTilt, CFG.bloomSeconds),
+    makeSlot(flower, CFG.bloomTilt, CFG.bloomSeconds)
+  ];
+}
+
+startBtn.onclick = async () => {
+  startBtn.disabled = true;
+  try {
+    setStatus('กำลังขอใช้กล้อง…');
+    const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'user', width: {ideal: 1280}, height: {ideal: 720}}, audio: false});
+    video.srcObject = stream; await video.play();
+    ar = video.videoWidth / video.videoHeight;
+    stage.style.setProperty('--ar', ar); stage.classList.add('live'); resize();
+
+    setStatus('กำลังโหลดดอกไม้และตัวตรวจจับมือ…');
+    await Promise.all([initLandmarker(), initModels()]);
+    running = true; snapBtn.disabled = false;
+    startBtn.textContent = 'กล้องเปิดอยู่';
+    setStatus('พร้อมแล้ว ลองแบมือดู');
+  } catch (e) {
+    console.error(e);
+    startBtn.disabled = false;
+    stage.classList.remove('live');
+    setStatus(e.name === 'NotAllowedError' ? 'ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตในเบราว์เซอร์แล้วลองใหม่'
+      : e.name === 'NotFoundError' ? 'ไม่พบกล้อง'
+      : location.protocol === 'file:' ? 'โหลดไฟล์ไม่ได้ ให้รันผ่าน python -m http.server ตามคำแนะนำด้านบน'
+      : 'เกิดข้อผิดพลาด: ' + (e.message || e.name));
+  }
+};
+
+snapBtn.onclick = () => {
+  renderer.render(scene, camera);
+  const c = document.createElement('canvas'); c.width = glCanvas.width; c.height = glCanvas.height;
+  const x = c.getContext('2d');
+  x.save(); x.translate(c.width, 0); x.scale(-1, 1); x.drawImage(video, 0, 0, c.width, c.height); x.restore();
+  x.drawImage(glCanvas, 0, 0);
+  const a = document.createElement('a'); a.download = 'flower-hands.png'; a.href = c.toDataURL('image/png'); a.click();
+};
+
+loop();
+</script>
+</body>
+</html>
